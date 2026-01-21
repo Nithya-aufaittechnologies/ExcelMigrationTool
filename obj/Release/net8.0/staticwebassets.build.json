@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "VUYc4iPQpNbRa4t0MOBQPzYbqYj1BBsHowLNfrJiOIg=",
+  "Source": "ExcelMigrationTool",
+  "BasePath": "_content/ExcelMigrationTool",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
