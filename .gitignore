@@ -1,0 +1,29 @@
+## .NET build output
+bin/
+obj/
+
+## Visual Studio files
+.vs/
+*.user
+*.suo
+
+## NuGet
+*.nupkg
+packages/
+
+## User-specific files
+*.rsuser
+*.userosscache
+*.sln.docstates
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+## OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
