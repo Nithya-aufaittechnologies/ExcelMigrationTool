@@ -919,8 +919,57 @@ public class ExcelMigrationService : IExcelMigrationService
             { "ot_sel_ot_rec_bpp", "OrderTransmittalID" },
             { "ot_select_project_sp", "CloneProjectId" }
         };
+	private static readonly Dictionary<string, string> ContractClearanceMapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+{
+    // Identifiers
+    { "record_no", "RecordNo" },
+	{ "id", "ContractClearanceId" },
+	{ "project_id", "ProjectId" },
+	{ "k__uot_ship_to_partydp", "EndUserID" },
+	{ "k__uot_sold_party_dp", "CustomerMasterID" },
+	{ "uot_bp_picker_bp", "OrderTransmittalId" },
+	{ "CCRecordSelectionId", "CCRecordSelectionId" },
 
-    public async Task<UploadResponse> MigrateExcelToSqlServerAsync(
+    // Status / Workflow
+    { "status", "Status" },
+	{ "creator_id", "CreatedName" },
+	{ "k__creator_id", "CreatedBy" },
+	{ "uuu_creation_date", "CreatedAt" },
+	{ "uuu_record_last_update_date", "UpdatedAt" },
+
+    // Turbine / Equipment Details
+    { "uot_turbine_pd", "TypeofTurbine" },
+	{ "uot_tur_framepd", "TypeofTurbine" },
+	{ "uot_ratiing_ia", "TurbineRatingKW" },
+	{ "turbine_material_code", "TurbineMaterialCode" },
+	{ "uot_nonstandard_pd", "FrameStandard" },
+	{ "specify_if_non_standard_tb", "FrameNonStandard" },
+	{ "comissioning_spares_pd", "TypeofSpares" },
+
+    // Contract / Warranty / Service
+    { "uot_contract_clnce_sdt120", "ContractClearanceFormat" },
+	{ "type_of_warranty_pd", "TypeOfWarranty" },
+	{ "uot_cs_pd", "ServiceType" },
+	{ "uot_qap_pd", "QAP" },
+	{ "order_acceptance", "OrderAcceptance" },
+
+    // Dates / Scheduling
+    { "ucc_schedul_dop", "ScheduledDispatchDate" },
+	{ "ucc_kom1", "ProposedKickOffDate" },
+	{ "ot_date", "OTDate" },
+
+    // Billing / Finance
+    { "cc_bm_turbine_dop1", "TurbineBillingMonth" },
+	{ "cc_bv_turbine_da", "TurbineBillingValue" },
+	{ "cc_bm_dbo_dop", "DBOBillingMonth" },
+	{ "cc_bv_dbo_da", "DBOBillingValue" },
+
+    // Special Instructions
+    { "ugeninstructionmtl4000", "SpecialInstructions" }
+};
+
+
+	public async Task<UploadResponse> MigrateExcelToSqlServerAsync(
         string connectionString,
         string schemaName,
         string tableName,
@@ -1921,9 +1970,13 @@ public class ExcelMigrationService : IExcelMigrationService
         {
             return MatchColumnsForCommunicationProtocol(excelData, tableMetadata);
         }
+		if (string.Equals(tableName, "ContractClearance", StringComparison.OrdinalIgnoreCase))
+		{
+			return MatchColumnsForContractClearance(excelData, tableMetadata);
+		}
 
-        // Check if this is BankGuarantee table - use hardcoded mapping
-        if (string.Equals(tableName, "BankGuarantee", StringComparison.OrdinalIgnoreCase))
+		// Check if this is BankGuarantee table - use hardcoded mapping
+		if (string.Equals(tableName, "BankGuarantee", StringComparison.OrdinalIgnoreCase))
         {
             return MatchColumnsForBankGuarantee(excelData, tableMetadata);
         }
@@ -2719,7 +2772,51 @@ public class ExcelMigrationService : IExcelMigrationService
         return mappings;
     }
 
-    private async Task CreateTempTableAsync(
+
+
+	private List<ColumnMapping> MatchColumnsForContractClearance(DataTable excelData, List<ColumnMetadata> tableMetadata)
+	{
+		var mappings = new List<ColumnMapping>();
+		var excelColumns = excelData.Columns.Cast<DataColumn>().ToList();
+
+		// Create a lookup for SQL column metadata by column name (case-insensitive)
+		var sqlColumnLookup = tableMetadata.ToDictionary(
+			m => m.ColumnName,
+			m => m,
+			StringComparer.OrdinalIgnoreCase);
+
+		// Iterate through the hardcoded mapping dictionary
+		foreach (var mappingEntry in ContractClearanceMapping)
+		{
+			var excelColumnName = mappingEntry.Key;
+			var sqlColumnName = mappingEntry.Value;
+
+			// Check if Excel has this column
+			var excelColumn = excelColumns.FirstOrDefault(
+				ec => ec.ColumnName.Equals(excelColumnName, StringComparison.OrdinalIgnoreCase));
+
+			if (excelColumn == null)
+				continue; // Skip if Excel column not found
+
+			// Check if SQL table has the mapped column
+			if (!sqlColumnLookup.TryGetValue(sqlColumnName, out var sqlColumn))
+				continue; // Skip if SQL column not found in metadata
+
+			// Add the mapping
+			mappings.Add(new ColumnMapping
+			{
+				ExcelColumnName = excelColumn.ColumnName,
+				SqlColumnName = sqlColumn.ColumnName,
+				SqlDataType = sqlColumn.DataType,
+				IsIdentity = sqlColumn.IsIdentity,
+				IsNullable = sqlColumn.IsNullable
+			});
+		}
+
+		return mappings;
+	}
+
+	private async Task CreateTempTableAsync(
         SqlConnection connection,
         SqlTransaction transaction,
         string tempTableName,
